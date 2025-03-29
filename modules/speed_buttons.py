@@ -20,7 +20,11 @@ class Button:
         self.action = action
 
     def draw(self, screen, font):
+        # Draw button background
         pygame.draw.rect(screen, self.color, self.rect)
+        # Draw button border
+        pygame.draw.rect(screen, BORDER_COLOR, self.rect, 1)
+        # Draw button text
         text_surface = font.render(self.text, True, (0, 0, 0))
         screen.blit(text_surface, (self.rect.x + (self.rect.width - text_surface.get_width()) // 2,
                                    self.rect.y + (self.rect.height - text_surface.get_height()) // 2))
@@ -34,10 +38,10 @@ def get_speed_buttons():
     """
     Generates 5 buttons with x1, x2, x4, x8 and x16 game speed modes
     """
-    button1 = Button(WIDTH + 20, HEIGHT - 40, 20, 20, WHITE, "x1", lambda : 1)
-    button2 = Button(WIDTH + 50, HEIGHT - 40, 20, 20, WHITE, "x2", lambda : 2)
-    button3 = Button(WIDTH + 80, HEIGHT - 40, 20, 20, WHITE, "x4", lambda : 4)
-    button4 = Button(WIDTH + 110, HEIGHT - 40, 20, 20, WHITE, "x8", lambda : 8)
-    button5 = Button(WIDTH + 140, HEIGHT - 40, 20, 20, WHITE, "x16", lambda : 16)
+    button1 = Button(WIDTH + 20, HEIGHT - 40, 20, 20, WALKABLE_CELL_COLOR, "x1", lambda : 1)
+    button2 = Button(WIDTH + 50, HEIGHT - 40, 20, 20, WALKABLE_CELL_COLOR, "x2", lambda : 2)
+    button3 = Button(WIDTH + 80, HEIGHT - 40, 20, 20, WALKABLE_CELL_COLOR, "x4", lambda : 4)
+    button4 = Button(WIDTH + 110, HEIGHT - 40, 20, 20, WALKABLE_CELL_COLOR, "x8", lambda : 8)
+    button5 = Button(WIDTH + 140, HEIGHT - 40, 20, 20, WALKABLE_CELL_COLOR, "x16", lambda : 16)
     buttons = [button1, button2, button3, button4, button5]
     return buttons
