@@ -1,6 +1,8 @@
+# --- START OF FILE main.py ---
+
 import pygame
 import sys
-from constants import *
+from constants import * # Make sure FOOD_CELL is defined here
 from modules.map_generator import generate_map
 from modules.food_generator import generate_food
 from modules.bot_operations import *
@@ -34,7 +36,7 @@ def draw_game_screen(screen: pygame.Surface, speed_buttons: list, map: list, mov
         screen.blit(text, (WIDTH // 2 - text.get_width() // 2, 20))
 
         # Draw speed buttons
-        font = pygame.font.SysFont('Arial', 15, bold=False) 
+        font = pygame.font.SysFont('Arial', 15, bold=False)
         text = font.render(f"Change game speed", True, TEXT_COLOR)
         screen.blit(text, (WIDTH + 10, HEIGHT - 80))
         for button in speed_buttons:
@@ -44,19 +46,26 @@ def draw_game_screen(screen: pygame.Surface, speed_buttons: list, map: list, mov
         font = pygame.font.SysFont(None, 18)
         for i, row in enumerate(map):
             for j, cell in enumerate(row):
-                if cell in COLOR_MAP.keys():    # If its not a player cell
-                    color = COLOR_MAP[cell]
-                else:   # Player cell will be marked by a number rather than 'P'
-                    color = COLOR_MAP[PLAYER_CELL]
-                
-                # Draw the cell with desired color
-                pygame.draw.rect(screen, color, (j * CELL_SIZE, i * CELL_SIZE + 100, CELL_SIZE, CELL_SIZE))
-                pygame.draw.rect(screen, BORDER_COLOR, (j * CELL_SIZE, i * CELL_SIZE + 100, CELL_SIZE, CELL_SIZE), 1)
+                # Basic check for non-uniform rows
+                if j < len(row):
+                    cell_value = row[j]
+                    if cell_value in COLOR_MAP.keys():    # If its not a player cell
+                        color = COLOR_MAP[cell_value]
+                    else:   # Player cell will be marked by a number rather than 'P'
+                        color = COLOR_MAP.get(PLAYER_CELL, (255, 255, 255)) # Use default white if PLAYER_CELL missing
+                    
+                    # Draw the cell with desired color
+                    pygame.draw.rect(screen, color, (j * CELL_SIZE, i * CELL_SIZE + 100, CELL_SIZE, CELL_SIZE))
+                    pygame.draw.rect(screen, BORDER_COLOR, (j * CELL_SIZE, i * CELL_SIZE + 100, CELL_SIZE, CELL_SIZE), 1)
 
-                # If its a player cell, draw the player number
-                if cell not in COLOR_MAP.keys():
-                    text = font.render(cell, True, (0, 0, 0))  # Black text for player numbers
-                    screen.blit(text, (j * CELL_SIZE + CELL_SIZE // 3, i * CELL_SIZE + 100 + CELL_SIZE // 4))
+                    # If its a player cell, draw the player number
+                    if cell_value not in COLOR_MAP.keys():
+                        text = font.render(str(cell_value), True, (0, 0, 0))  # Black text for player numbers
+                        screen.blit(text, (j * CELL_SIZE + CELL_SIZE // 3, i * CELL_SIZE + 100 + CELL_SIZE // 4))
+                # else: # Handle potentially jagged map rows if necessary
+                    # pygame.draw.rect(screen, OUT_OF_BOUNDS_COLOR, (j * CELL_SIZE, i * CELL_SIZE + 100, CELL_SIZE, CELL_SIZE))
+                    # pygame.draw.rect(screen, BORDER_COLOR, (j * CELL_SIZE, i * CELL_SIZE + 100, CELL_SIZE, CELL_SIZE), 1)
+
 
         # Draw moves left
         font = pygame.font.SysFont('Arial', 25, bold=True)  # Use Arial font with size 30 and bold
@@ -66,10 +75,11 @@ def draw_game_screen(screen: pygame.Surface, speed_buttons: list, map: list, mov
         # Draw score board
         font = pygame.font.SysFont('Arial', 20, bold=False)  # Use Arial font with size 20 and not bold
         sorted_bots = sorted(bot_food.items(), key=lambda item: item[1], reverse=True)
-        
+
         x_offset = WIDTH + 20
         y_offset = 120
         scoreboard_width = 180
+        # Adjust height dynamically based on number of bots
         scoreboard_height = 40 + len(sorted_bots) * 30
 
         # Draw the box around the scoreboard
@@ -77,15 +87,17 @@ def draw_game_screen(screen: pygame.Surface, speed_buttons: list, map: list, mov
 
         screen.blit(font.render("Scoreboard", True, TEXT_COLOR), (x_offset, y_offset))
         y_offset += 30
-        
+
         for bot_id, food in sorted_bots:
-            bot_name = bot_names[bot_id]
+            # Ensure bot_id exists in bot_names before accessing
+            bot_name = bot_names.get(bot_id, f"Bot {bot_id}") # Provide default name if missing
             text = f"{bot_id}. {bot_name}: {food}"
             screen.blit(font.render(text, True, TEXT_COLOR), (x_offset, y_offset))
             y_offset += 30
     except Exception as e:
         print(f"Error in draw_game_screen: {e}")
-        raise
+        # Optionally re-raise or handle differently
+        # raise
 
 # Draws game over screen with the winner name
 # (DO NOT CHANGE THIS, YOUR CHANGES WILL BE IGNORED IN THE COMPETITION)
@@ -103,7 +115,8 @@ def draw_game_over_screen(screen: pygame.Surface, winner_bot_name: str):
         screen.blit(text, (WIDTH // 2 - text.get_width() // 2 + 100, HEIGHT // 2 + 100))
     except Exception as e:
         print(f"Error in draw_game_over_screen: {e}")
-        raise
+        # Optionally re-raise or handle differently
+        # raise
 
 # Main loop of the game
 # (DO NOT CHANGE THIS, YOUR CHANGES WILL BE IGNORED IN THE COMPETITION)
@@ -122,6 +135,12 @@ def main():
 
         is_game_running = True  # Game loop
         game_counter = 1000 # Maximum game moves
+
+        # --- Configuration for Food Generation (Option D) ---
+        MAX_FOOD_PERCENTAGE = 0.15 # Adjust this: Max 15% of map cells should be food
+        FOOD_GENERATION_QUANTITY_PER_BOT = 1 # How much food to potentially add per alive bot
+        # --- End Configuration ---
+
         while is_game_running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -131,29 +150,91 @@ def main():
                         if button.is_clicked(event.pos):
                             game_tick = button.action()
 
-            if game_counter > 0 or num_of_alive_bots == 1:
+            # --- Game Logic Execution ---
+            if game_counter > 0 and num_of_alive_bots > 1: # Check if game is still running normally
+                # 1. Calculate Bot Moves
                 bot_directions = calculate_bot_directions(map, bots, bot_positions, bot_ids, bot_food)
+
+                # 2. Move Bots (This should handle eating food and updating map)
                 move_bots(map, bot_ids, bot_positions, bot_directions, bot_food)
+
+                # 3. Update Alive Bot Count (Crucial after moves/battles)
                 num_of_alive_bots = sum(1 for i in bot_ids.values() if i == BOT_ALIVE)
 
+                # 4. Conditional Food Generation (Option D)
+                rows = len(map)
+                cols = len(map[0]) if rows > 0 else 0
+                if rows > 0 and cols > 0: # Ensure map is valid
+                    total_cells = rows * cols
+                    # Count only FOOD_CELL, not walkable or others
+                    food_count = sum(row.count(FOOD_CELL) for row in map)
+                    current_food_percentage = food_count / total_cells
+
+                    # Check threshold before generating food
+                    if current_food_percentage < MAX_FOOD_PERCENTAGE:
+                        # Calculate quantity based on alive bots
+                        quantity_to_generate = num_of_alive_bots * FOOD_GENERATION_QUANTITY_PER_BOT
+                        # print(f"Debug: Food % ({current_food_percentage:.2f}) < Threshold ({MAX_FOOD_PERCENTAGE}). Generating up to {quantity_to_generate} food.") # Optional Debug
+                        generate_food(map, quantity_to_generate)
+                    # else:
+                        # print(f"Debug: Food % ({current_food_percentage:.2f}) >= Threshold ({MAX_FOOD_PERCENTAGE}). Skipping food generation.") # Optional Debug
+                else:
+                    print("Warning: Map dimensions invalid, skipping food generation.")
+
+
+                # 5. Draw Screen
                 screen.fill(BACKGROUND_COLOR)
                 draw_game_screen(screen, speed_buttons, map, game_counter, bot_food, bot_names)
-                generate_food(map, number_of_bots)
-            
-            else:
-                # Find winner of the game (Bot with maximum food)
-                winner = 1
-                for id in bot_food.keys():
-                    if bot_food[id] > bot_food[winner]:
-                        winner = id
+
+                # --- REMOVED OLD generate_food CALL ---
+                # generate_food(map, number_of_bots) # <<< THIS IS THE OLD CALL, NOW REMOVED/HANDLED ABOVE
+
+            # --- Game Over Logic ---
+            elif game_counter <= 0 or num_of_alive_bots <= 1:
+                # Find winner of the game (Bot with maximum food among survivors, or last one standing)
+                winner = -1 # Default to no winner
+                max_food = -1
+
+                # If timeout, winner is highest score among alive
+                if game_counter <= 0:
+                    alive_bots_food = {id: food for id, food in bot_food.items() if bot_ids.get(id, BOT_DEAD) == BOT_ALIVE}
+                    if alive_bots_food:
+                         winner = max(alive_bots_food, key=alive_bots_food.get)
+                    # If no bots alive at timeout (unlikely but possible), winner remains -1
+                # If last man standing
+                elif num_of_alive_bots == 1:
+                    for id, status in bot_ids.items():
+                        if status == BOT_ALIVE:
+                            winner = id
+                            break
+                # If somehow num_of_alive_bots is 0 (e.g., simultaneous death on last move)
+                else: # num_of_alive_bots == 0
+                     # Could declare draw or pick highest score among all ever existed
+                     if bot_food: # Check if bot_food has any entries
+                         winner = max(bot_food, key=bot_food.get)
+
+
+                winner_name = "DRAW" # Default if no winner found
+                if winner != -1 and winner in bot_names:
+                    winner_name = bot_names[winner]
+                elif winner != -1:
+                    winner_name = f"Bot {winner}" # Fallback name
+
                 screen.fill(BACKGROUND_COLOR)
-                draw_game_over_screen(screen, bot_names[winner])
-            
+                draw_game_over_screen(screen, winner_name)
+
+                # Optional: Add a small delay or wait for click before quitting on game over
+                # pygame.time.wait(3000)
+                # is_game_running = False # Or wait for QUIT event
+
+            # --- Update Display and Tick Clock ---
             game_counter -= 1
             pygame.display.flip()
             clock.tick(game_tick)
+
     except Exception as e:
         print(f"Error in main game loop: {e}")
+        # Optionally re-raise to see traceback
         raise
     finally:
         pygame.quit()
@@ -162,6 +243,11 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        print(f"Fatal error: {e}")
+        # Print fatal errors that might occur outside the main loop's try-except
+        print(f"Fatal error during execution: {e}")
+        import traceback
+        traceback.print_exc() # Print the full traceback for debugging
         pygame.quit()
         sys.exit(1)
+
+# --- END OF FILE main.py ---
